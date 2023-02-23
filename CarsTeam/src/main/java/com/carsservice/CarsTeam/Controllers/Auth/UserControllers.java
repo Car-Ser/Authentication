@@ -1,57 +1,70 @@
 package com.carsservice.CarsTeam.Controllers.Auth;
 
+import com.carsservice.CarsTeam.DTO.auth.LoginDTO;
+import com.carsservice.CarsTeam.DTO.auth.SignUpDto;
 import com.carsservice.CarsTeam.Model.Auth.User;
+import com.carsservice.CarsTeam.Model.Role.RoleEntity;
 import com.carsservice.CarsTeam.Repositories.Auth.UserRepository;
-import com.carsservice.CarsTeam.Services.Auth.UserService.UserService;
+import com.carsservice.CarsTeam.Repositories.Role.RoleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.stereotype.Controller;
-import org.springframework.validation.BindingResult;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.UUID;
+import java.util.Collections;
 
-@Controller
+@RestController
+@RequestMapping("/api/auth")
 public class UserControllers {
-
-    private UserService userService;
-
-    private BCryptPasswordEncoder bCryptPasswordEncoder;
-
-    private BindingResult bindingResult;
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
     @Autowired
-    UserRepository UserRepositories;
+    private UserRepository userRepository;
 
-    public UserControllers(UserRepository UserRepositories) {
-        this.UserRepositories = UserRepositories;
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @PostMapping("/signin")
+    public ResponseEntity<String> authenticateUser(@RequestBody LoginDTO loginDto){
+        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                loginDto.getUsernameOrEmail(), loginDto.getPassword()));
+
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        return new ResponseEntity<>("User signed-in successfully!.", HttpStatus.OK);
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestParam String email,
-                                           @RequestParam String firstName,
-                                           @RequestParam String lastName,
-                                           @RequestParam String password){
-        User existUser = userService.findByEmail(email);
-        if (existUser != null){
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(email + " Is Already Exist");
-        } else {
-            try {
-
-                User user = new User(email,  bCryptPasswordEncoder.encode(password), firstName, lastName, false, UUID.randomUUID().toString());
-                userService.saveUser(user);
-                return ResponseEntity.status(201)
-                        .body(user.getConfirmationToken().toString());
-            } catch (HttpClientErrorException.BadRequest br) {
-                return ResponseEntity.status(Integer.parseInt("400")).body(
-                        email + " Please Try Again"
-                );
-            }
+    @PostMapping("/signup")
+    public ResponseEntity<?> registerUser(@RequestBody SignUpDto signUpDto){
+        if(userRepository.existsByUsername(signUpDto.getUsername())){
+            return new ResponseEntity<>("Username is already taken!", HttpStatus.BAD_REQUEST);
         }
-    }
+        if(userRepository.existsByEmail(signUpDto.getEmail())){
+            return new ResponseEntity<>("Email is already taken!", HttpStatus.BAD_REQUEST);
+        }
+        User user = new User();
+        user.setName(signUpDto.getName());
+        user.setUsername(signUpDto.getUsername());
+        user.setEmail(signUpDto.getEmail());
+        user.setPassword(passwordEncoder.encode(signUpDto.getPassword()));
 
+        RoleEntity roles = roleRepository.findByName("ROLE_ADMIN").get();
+        user.setRoles(Collections.singleton(roles));
+
+        userRepository.save(user);
+
+        return new ResponseEntity<>("User registered successfully", HttpStatus.OK);
+
+    }
 }

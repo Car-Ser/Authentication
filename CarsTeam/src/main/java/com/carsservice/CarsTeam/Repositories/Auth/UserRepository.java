@@ -1,11 +1,14 @@
 package com.carsservice.CarsTeam.Repositories.Auth;
 
 import com.carsservice.CarsTeam.Model.Auth.User;
-import org.springframework.data.repository.CrudRepository;
-import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-@Repository("userRepository")
-public interface UserRepository extends CrudRepository<User, Long> {
-    User findByEmail(String email);
-    User findByConfirmationToken(String confirmationToken);
+import java.util.Optional;
+
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+    Optional<User> findByUsernameOrEmail(String username, String email);
+    Optional<User> findByUsername(String username);
+    Boolean existsByUsername(String username);
+    Boolean existsByEmail(String email);
 }
