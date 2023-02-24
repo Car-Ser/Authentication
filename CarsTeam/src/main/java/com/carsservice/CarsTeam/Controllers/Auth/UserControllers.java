@@ -36,35 +36,39 @@ public class UserControllers {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    @PostMapping("/signin")
-    public ResponseEntity<String> authenticateUser(@RequestBody LoginDTO loginDto){
-        Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
-                loginDto.getUsernameOrEmail(), loginDto.getPassword()));
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        return new ResponseEntity<>("User signed-in successfully!.", HttpStatus.OK);
+    @PostMapping("/login")
+    public ResponseEntity<String> authenticateUser(@RequestBody LoginDTO loginDto) {
+        if (!userRepository.existsByUserName(loginDto.getUserNameOrEmail())){
+            return new ResponseEntity<>("Username does not exist!", HttpStatus.BAD_REQUEST);
+        } else if (!userRepository.existsByEmail(loginDto.getUserNameOrEmail())){
+            return new ResponseEntity<>("Email does not exist!", HttpStatus.BAD_REQUEST);
+        } else {
+            Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    loginDto.getUserNameOrEmail(), loginDto.getPassword()));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            return new ResponseEntity<>("User signed-in successfully!.", HttpStatus.OK);
+        }
     }
 
-    @PostMapping("/signup")
-    public ResponseEntity<?> registerUser(@RequestBody SignUpDto signUpDto){
-        if(userRepository.existsByUsername(signUpDto.getUsername())){
+    @PostMapping("/register")
+    public ResponseEntity<?> registerUser(@RequestBody SignUpDto signUpDto) {
+        if (userRepository.existsByUserName(signUpDto.getUserName())) {
             return new ResponseEntity<>("Username is already taken!", HttpStatus.BAD_REQUEST);
-        }
-        if(userRepository.existsByEmail(signUpDto.getEmail())){
+        } else if (userRepository.existsByEmail(signUpDto.getEmail())) {
             return new ResponseEntity<>("Email is already taken!", HttpStatus.BAD_REQUEST);
+        } else {
+            User user = new User();
+            user.setFirstName(signUpDto.getFirstName());
+            user.setLastName(signUpDto.getLastName());
+            user.setUserName(signUpDto.getUserName());
+            user.setCountry(signUpDto.getCountry());
+            user.setDateOfBirth(user.getDateOfBirth());
+            user.setEmail(signUpDto.getEmail());
+            user.setPassword(passwordEncoder.encode(signUpDto.getPassword()));
+            RoleEntity roles = roleRepository.findByName(signUpDto.getRoles()).get();
+            user.setRoles(Collections.singleton(roles));
+            userRepository.save(user);
+            return new ResponseEntity<>("User registered successfully", HttpStatus.OK);
         }
-        User user = new User();
-        user.setName(signUpDto.getName());
-        user.setUsername(signUpDto.getUsername());
-        user.setEmail(signUpDto.getEmail());
-        user.setPassword(passwordEncoder.encode(signUpDto.getPassword()));
-
-        RoleEntity roles = roleRepository.findByName("ROLE_ADMIN").get();
-        user.setRoles(Collections.singleton(roles));
-
-        userRepository.save(user);
-
-        return new ResponseEntity<>("User registered successfully", HttpStatus.OK);
-
     }
 }
