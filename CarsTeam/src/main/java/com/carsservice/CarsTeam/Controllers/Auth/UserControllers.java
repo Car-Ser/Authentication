@@ -38,11 +38,10 @@ public class UserControllers {
 
     @PostMapping("/login")
     public ResponseEntity<String> authenticateUser(@RequestBody LoginDTO loginDto) {
-        if (!userRepository.existsByUserName(loginDto.getUserNameOrEmail())){
-            return new ResponseEntity<>("Username does not exist!", HttpStatus.BAD_REQUEST);
-        } else if (!userRepository.existsByEmail(loginDto.getUserNameOrEmail())){
-            return new ResponseEntity<>("Email does not exist!", HttpStatus.BAD_REQUEST);
-        } else {
+        if (!userRepository.existsByUserName(loginDto.getUserNameOrEmail()) && !userRepository.existsByEmail(loginDto.getUserNameOrEmail())) {
+            return new ResponseEntity<>("User Does Not Fount", HttpStatus.BAD_REQUEST);
+        }
+        else {
             Authentication authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
                     loginDto.getUserNameOrEmail(), loginDto.getPassword()));
             SecurityContextHolder.getContext().setAuthentication(authentication);
